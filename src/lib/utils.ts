@@ -1,35 +1,49 @@
-export function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return '0:00'
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
+/**
+ * Utility functions for Resona player
+ */
 
-export function formatDuration(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return '0:00'
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h}h ${m}m`
-  return `${m} min`
-}
-
+/**
+ * Convert hex color to rgba string
+ * @param hex - Hex color code (e.g., '#FF0000')
+ * @param alpha - Alpha value (0-1)
+ * @returns rgba string
+ */
 export function hexToRgba(hex: string, alpha: number): string {
-  const clean = hex.replace('#', '')
-  const r = parseInt(clean.substring(0, 2), 16)
-  const g = parseInt(clean.substring(2, 4), 16)
-  const b = parseInt(clean.substring(4, 6), 16)
-  if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(0, 0, 0, ${alpha})`
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-export function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
+/**
+ * Get display title for a track
+ * @param track - Track object
+ * @returns Display title
+ */
+export function getTrackDisplayTitle(track: any): string {
+  return track?.title || 'Unknown Track'
 }
 
-export function darken(hex: string, factor: number): string {
-  const clean = hex.replace('#', '')
-  const r = Math.round(parseInt(clean.substring(0, 2), 16) * factor)
-  const g = Math.round(parseInt(clean.substring(2, 4), 16) * factor)
-  const b = Math.round(parseInt(clean.substring(4, 6), 16) * factor)
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+/**
+ * Format milliseconds to MM:SS format
+ * @param ms - Milliseconds
+ * @returns Formatted time string
+ */
+export function formatTime(ms: number): string {
+  if (!isFinite(ms)) return '0:00'
+  const s = Math.floor(ms)
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return `${m}:${sec.toString().padStart(2, '0')}`
+}
+
+/**
+ * Clamp a number between min and max
+ * @param num - Number to clamp
+ * @param min - Minimum value
+ * @param max - Maximum value
+ * @returns Clamped number
+ */
+export function clamp(num: number, min: number, max: number): number {
+  return Math.min(Math.max(num, min), max)
 }
