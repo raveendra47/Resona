@@ -7,7 +7,7 @@ use std::path::Path;
 
 pub async fn init_pool(path: &Path) -> Result<SqlitePool, String> {
     let pool = SqlitePoolOptions::new()
-        .max_connections(5)
+        .max_connections(15) // Increased from 5 for better parallelism
         .connect_with(
             sqlx::sqlite::SqliteConnectOptions::new()
                 .filename(path)
@@ -15,6 +15,33 @@ pub async fn init_pool(path: &Path) -> Result<SqlitePool, String> {
         )
         .await
         .map_err(|e| format!("Failed to create pool: {e}"))?;
+    
+    // Apply performance PRAGMAs before migrations
+    sqlx::query("PRAGMA journal_mode=WAL")
+        .execute(&pool)
+        .await
+        .map_err(|e| format!("Failed to set WAL mode: {e}"))?;
+    
+    sqlx::query("PRAGMA synchronous=NORMAL")
+        .execute(&pool)
+        .await
+        .map_err(|e| format!("Failed to set synchronous mode: {e}"))?;
+    
+    sqlx::query("PRAGMA cache_size=-64000") // 64MB cache
+        .execute(&pool)
+        .await
+        .map_err(|e| format!("Failed to set cache size: {e}"))?;
+    
+    sqlx::query("PRAGMA temp_store=MEMORY")
+        .execute(&pool)
+        .await
+        .map_err(|e| format!("Failed to set temp store: {e}"))?;
+    
+    sqlx::query("PRAGMA mmap_size=268435456") // 256MB memory-mapped I/O
+        .execute(&pool)
+        .await
+        .map_err(|e| format!("Failed to set mmap size: {e}"))?;
+    
     run_migrations(&pool).await?;
 
     let pool_clone = pool.clone();
@@ -971,6 +998,84 @@ pub async fn repair_artwork_status(pool: &SqlitePool) -> Result<(), String> {
         }
         let _ = set_track_genres(&mut *pool.acquire().await.unwrap_or_else(|_| panic!("DB error")), track_id, &gids).await;
     }
+
+    // Performance indexes for faster queries (Phase 1 optimization)
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_album ON tracks(album)"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist)"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_album_artist ON tracks(album_artist)"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_genre ON tracks(genre)"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_year ON tracks(year)"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_duration ON tracks(duration)"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_play_count ON tracks(play_count DESC)"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_artwork_key ON tracks(artwork_key) WHERE artwork_key IS NOT NULL"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_playlist_tracks_position ON playlist_tracks(playlist_id, position)"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_file_path ON tracks(file_path)"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_cue_parent ON tracks(cue_parent_id) WHERE cue_parent_id IS NOT NULL"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| format!("Migration failed: {e}"))?;
 
     Ok(())
 }
