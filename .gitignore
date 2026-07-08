@@ -5,6 +5,7 @@ Cargo.lock
 
 # Logs and temp files
 *.log
+*.tmp
 
 # Environment
 .env
@@ -15,6 +16,7 @@ Cargo.lock
 .vscode/
 .idea/
 
-# Build artifacts
-**/target/
+# OS
+.DS_Store
+Thumbs.db
 ```
