@@ -1,0 +1,40 @@
+[build]
+# Enable LTO (Link Time Optimization) for smaller and faster binaries
+lto = true
+
+# Strip debug symbols for release builds
+strip = true
+
+# Code generation units for better optimization
+codegen-units = 1
+
+[target.x86_64-pc-windows-msvc]
+# Optimize for native CPU instructions
+rustflags = [
+    "-C", "target-cpu=native",
+    "-C", "link-arg=/OPT:REF",
+    "-C", "link-arg=/OPT:ICF",
+]
+
+[target.x86_64-pc-windows-gnu]
+rustflags = [
+    "-C", "target-cpu=native",
+    "-C", "link-arg=-Wl,--gc-sections",
+]
+
+[profile.release]
+# Maximum optimization level
+opt-level = 3
+# Enable LTO
+lto = true
+# Strip symbols
+strip = true
+# Panic abort for smaller binaries
+panic = "abort"
+# Codegen units for better optimization
+codegen-units = 1
+
+[profile.release-with-debug]
+inherits = "release"
+strip = false
+debug = true

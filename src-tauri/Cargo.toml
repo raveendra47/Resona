@@ -27,7 +27,6 @@ tokio = { version = "1", features = ["full"] }
 maudio = "0.1"
 lofty = "0.22"
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }
-notify = "7"
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
 base64 = "0.22"
@@ -39,5 +38,21 @@ reqwest = { version = "0.12", features = ["json", "blocking"] }
 tiny_http = "0.12"
 sha2 = "0.10"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+
+# Performance optimizations
+rayon = "1.10"
+dashmap = "6.0"
+moka = { version = "0.12", features = ["future"] }
+
+# Windows-specific APIs (Phase 1)
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.58"
+features = [
+    "Win32_System_Threading",
+    "Win32_Foundation",
+    "Win32_System_WindowsProgramming",
+    "Win32_System_IO",
+    "Win32_Storage_FileSystem",
+]
 
 [package.metadata]
