@@ -7,6 +7,8 @@ use crate::library::track::Track;
 use crate::library::track_artwork::TrackArtworkCache;
 use crate::remote::RemoteControl;
 use crate::search::tantivy_index::TantivyIndex;
+#[cfg(windows)]
+use crate::gpu::artwork_engine::GpuArtworkEngine;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU32};
@@ -28,4 +30,6 @@ pub struct AppState {
     pub is_fetching: Arc<AtomicBool>,
     pub current_track_id: Arc<Mutex<Option<String>>>,
     pub lufs_cache: Option<Arc<Mutex<LufsCache>>>, // Phase 2: LUFS normalization
+    #[cfg(windows)]
+    pub gpu_engine: Option<Arc<GpuArtworkEngine>>, // Phase 3: GPU acceleration
 }

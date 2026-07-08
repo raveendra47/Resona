@@ -13,6 +13,10 @@ use resona_lib::search::tantivy_index::TantivyIndex;
 use resona_lib::library::scanner;
 use resona_lib::library::eq;
 use resona_lib::state::AppState;
+#[cfg(windows)]
+use resona_lib::gpu::artwork_engine::GpuArtworkEngine;
+#[cfg(windows)]
+use resona_lib::windows::taskbar::TaskbarManager;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::Emitter;
@@ -58,6 +62,13 @@ fn main() {
             // Initialize LUFS cache (Phase 2)
             let lufs_cache = Arc::new(std::sync::Mutex::new(LufsCache::new()));
 
+            #[cfg(windows)]
+            let gpu_engine = tauri::async_runtime::block_on(GpuArtworkEngine::initialize())
+                .unwrap_or_else(|e| {
+                    log::warn!("Failed to initialize GPU engine: {}", e);
+                    Arc::new(GpuArtworkEngine::default_for_fallback())
+                });
+
             let state = AppState {
                 player: Arc::new(player),
                 db: pool.clone(),
@@ -74,6 +85,8 @@ fn main() {
                 is_fetching: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 current_track_id: Arc::new(std::sync::Mutex::new(None)),
                 lufs_cache: Some(lufs_cache), // Phase 2
+                #[cfg(windows)]
+                gpu_engine: Some(gpu_engine),
             };
             app.manage(state);
 
