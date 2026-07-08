@@ -48,7 +48,8 @@ moka = { version = "0.12", features = ["future"] }
 tantivy = "0.22"
 
 # LUFS normalization (Phase 2)
-loudness-rs = "0.1"
+# Note: loudness-rs is not available, using eburon instead
+eburon = "0.1"
 symphonia = { version = "0.5", default-features = false, features = ["mp3", "aac", "flac", "wav", "ogg", "pcm", "isomp4"] }
 
 # Windows-specific APIs (Phase 3 - GPU & Native Integration)
