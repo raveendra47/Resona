@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use resona_lib::audio::player::Player;
+use resona_lib::audio::lufs::LufsCache;
 use resona_lib::commands;
 use resona_lib::discord_rpc;
 use resona_lib::library::artist_artwork::ArtistArtworkCache;
@@ -8,7 +9,7 @@ use resona_lib::library::artist_artwork_worker::ArtistArtworkWorker;
 use resona_lib::library::track_artwork::TrackArtworkCache;
 use resona_lib::library::db;
 use resona_lib::remote;
-use resona_lib::search::search::SearchIndex;
+use resona_lib::search::tantivy_index::TantivyIndex;
 use resona_lib::library::scanner;
 use resona_lib::library::eq;
 use resona_lib::state::AppState;
@@ -40,8 +41,12 @@ fn main() {
             let db_path = data_dir.join("library.db");
             let pool = tauri::async_runtime::block_on(db::init_pool(&db_path))
                 .expect("Failed to init database");
-            let search =
-                SearchIndex::new(&data_dir.join("search")).expect("Failed to init search index");
+            
+            // Initialize Tantivy full-text search index (Phase 2)
+            let search_index_dir = data_dir.join("search_index");
+            std::fs::create_dir_all(&search_index_dir).ok();
+            let search = TantivyIndex::new(&search_index_dir)
+                .expect("Failed to init tantivy search index");
 
             let (player, volume) = Player::new();
 
@@ -49,6 +54,9 @@ fn main() {
             let artist_cache = Arc::new(ArtistArtworkCache::new(artwork_cache_dir));
             let artist_worker = Arc::new(ArtistArtworkWorker::new());
             let track_artwork_cache = Arc::new(TrackArtworkCache::new(data_dir.join("track_artwork")));
+            
+            // Initialize LUFS cache (Phase 2)
+            let lufs_cache = Arc::new(std::sync::Mutex::new(LufsCache::new()));
 
             let state = AppState {
                 player: Arc::new(player),
@@ -65,6 +73,7 @@ fn main() {
                 is_scanning: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 is_fetching: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 current_track_id: Arc::new(std::sync::Mutex::new(None)),
+                lufs_cache: Some(lufs_cache), // Phase 2
             };
             app.manage(state);
 

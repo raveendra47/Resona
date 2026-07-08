@@ -27,6 +27,26 @@ impl Biquad {
         self.y2 = self.y1; self.y1 = y;
         y
     }
+    
+    /// Process multiple samples in sequence (SIMD-friendly)
+    pub fn process_batch(&mut self, samples: &mut [f32]) {
+        if !self.enabled() {
+            return;
+        }
+        
+        for sample in samples.iter_mut() {
+            let y = self.b0 * *sample + self.b1 * self.x1 + self.b2 * self.x2
+                - self.a1 * self.y1 - self.a2 * self.y2;
+            self.x2 = self.x1; self.x1 = *sample;
+            self.y2 = self.y1; self.y1 = y;
+            *sample = y;
+        }
+    }
+    
+    fn enabled(&self) -> bool {
+        // Check if any coefficient is non-zero (filter is active)
+        self.b0 != 0.0 || self.b1 != 0.0 || self.b2 != 0.0 || self.a1 != 0.0 || self.a2 != 0.0
+    }
 }
 
 /// RBJ peaking filter coefficients.
@@ -87,7 +107,43 @@ impl GraphicEq {
     }
 
     /// Process stereo interleaved PCM in-place. No-op when disabled.
+    /// Optimized for SIMD with batch processing per band.
     pub fn process(&mut self, samples: &mut [f32]) {
+        if !self.enabled {
+            return;
+        }
+        
+        // Process left and right channels separately for better SIMD optimization
+        let len = samples.len();
+        
+        // Extract left and right channels
+        let mut left = Vec::with_capacity(len / 2);
+        let mut right = Vec::with_capacity(len / 2);
+        
+        for (i, chunk) in samples.chunks_exact(2).enumerate() {
+            left.push(chunk[0]);
+            right.push(chunk[1]);
+        }
+        
+        // Process each band on all samples (SIMD-friendly pattern)
+        for band in &mut self.bands {
+            band.process_batch(&mut left);
+            band.process_batch(&mut right);
+        }
+        
+        // Interleave back
+        for (i, frame) in samples.chunks_exact_mut(2).enumerate() {
+            if i < left.len() {
+                frame[0] = left[i];
+            }
+            if i < right.len() {
+                frame[1] = right[i];
+            }
+        }
+    }
+    
+    /// Alternative: Process sample-by-sample (original method, less SIMD-friendly)
+    pub fn process_scalar(&mut self, samples: &mut [f32]) {
         if !self.enabled {
             return;
         }
